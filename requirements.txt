@@ -1,0 +1,22 @@
+# Core dependencies
+langchain
+langchain-community
+langchain-core
+langchain-openai
+langchain-pinecone
+
+# Vector Database
+pinecone-client
+
+# LLM & Embeddings
+openai
+
+# Web Framework
+streamlit
+
+# Environment Variables
+python-dotenv
+
+# Additional Dependencies
+typing-extensions
+numpy
