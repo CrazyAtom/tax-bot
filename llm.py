@@ -1,3 +1,5 @@
+import uuid
+
 from langchain.chains import (create_history_aware_retriever,
                               create_retrieval_chain)
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -11,7 +13,7 @@ from langchain_core.runnables import RunnableWithMessageHistory
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 
-from config import answer_examples
+from config import ROLE_ASSISTANT, answer_examples
 
 store = {}
 
@@ -88,13 +90,14 @@ def get_rag_chain():
     example_prompt = ChatPromptTemplate.from_messages(
         [
             ("human", "{input}"),
-            ("ai", "{answer}"),
+            (ROLE_ASSISTANT, "{answer}"),
         ]
     )
+
     few_shot_prompt = FewShotChatMessagePromptTemplate(
         example_prompt=example_prompt,
         examples=answer_examples,
-    )
+    ).format()
 
     qa_system_prompt = (
         "당신은 소득세법 전문가입니다. 사용자의 소득세법에 관한 질문에 답변해주세요"
@@ -109,7 +112,7 @@ def get_rag_chain():
     qa_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", qa_system_prompt),
-            few_shot_prompt,
+            *few_shot_prompt,
             MessagesPlaceholder("chat_history"),
             ("human", "{input}"),
         ]
@@ -131,7 +134,10 @@ def get_rag_chain():
     return conversational_rag_chain
 
 
-def get_ai_response(user_question):
+def get_ai_response(user_question, session_id=None):
+    if session_id is None:
+        session_id = str(uuid.uuid4())
+
     dictionary_chain = get_dictionary_chain()
     rag_chain = get_rag_chain()
     tax_chain = {"input": dictionary_chain} | rag_chain
@@ -141,9 +147,8 @@ def get_ai_response(user_question):
             "question": user_question
         },
         config={
-            "configurable": {"session_id": "abc123"}
+            "configurable": {"session_id": session_id},
         },
     )
 
-    return ai_response
     return ai_response
