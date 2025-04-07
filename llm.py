@@ -4,10 +4,14 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.prompts import (ChatPromptTemplate,
+                                    FewShotChatMessagePromptTemplate,
+                                    MessagesPlaceholder)
 from langchain_core.runnables import RunnableWithMessageHistory
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
+
+from config import answer_examples
 
 store = {}
 
@@ -80,7 +84,17 @@ def get_dictionary_chain():
 
 def get_rag_chain():
     llm = get_llm()
-    history_aware_retriever = get_history_retriever()
+
+    example_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("human", "{input}"),
+            ("ai", "{answer}"),
+        ]
+    )
+    few_shot_prompt = FewShotChatMessagePromptTemplate(
+        example_prompt=example_prompt,
+        examples=answer_examples,
+    )
 
     qa_system_prompt = (
         "당신은 소득세법 전문가입니다. 사용자의 소득세법에 관한 질문에 답변해주세요"
@@ -95,11 +109,13 @@ def get_rag_chain():
     qa_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", qa_system_prompt),
+            few_shot_prompt,
             MessagesPlaceholder("chat_history"),
             ("human", "{input}"),
         ]
     )
 
+    history_aware_retriever = get_history_retriever()
     question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
 
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
@@ -129,4 +145,5 @@ def get_ai_response(user_question):
         },
     )
 
+    return ai_response
     return ai_response
